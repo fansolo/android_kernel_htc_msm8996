@@ -5024,7 +5024,7 @@ static unsigned long __cpu_norm_util(int cpu, unsigned long capacity, int delta)
 	if (util >= capacity)
 		return SCHED_CAPACITY_SCALE;
 
-	return (util << SCHED_CAPACITY_SHIFT)/capacity;
+	return DIV_ROUND_UP(util << SCHED_CAPACITY_SHIFT, capacity);
 }
 
 static int calc_util_delta(struct energy_env *eenv, int cpu)
@@ -5273,6 +5273,8 @@ compute_after:
 static int sched_group_energy(struct energy_env *eenv)
 {
 	struct sched_domain *sd;
+	int cpu;
+	u64 total_energy = 0;
 	struct cpumask visit_cpus;
 	struct sched_group *sg;
 	int cpu;
@@ -5306,8 +5308,31 @@ static int sched_group_energy(struct energy_env *eenv)
 				if (sg_shared_cap && sg_shared_cap->group_weight >= sg->group_weight)
 					eenv->sg_cap = sg_shared_cap;
 
-				eenv->sg = sg;
-				before_after_energy(eenv);
+				cap_idx = find_new_capacity(eenv, sg->sge);
+
+				if (sg->group_weight == 1) {
+					/* Remove capacity of src CPU (before task move) */
+					if (eenv->util_delta == 0 &&
+					    cpumask_test_cpu(eenv->src_cpu, sched_group_cpus(sg))) {
+						eenv->cap.before = sg->sge->cap_states[cap_idx].cap;
+						eenv->cap.delta -= eenv->cap.before;
+					}
+					/* Add capacity of dst CPU  (after task move) */
+					if (eenv->util_delta != 0 &&
+					    cpumask_test_cpu(eenv->dst_cpu, sched_group_cpus(sg))) {
+						eenv->cap.after = sg->sge->cap_states[cap_idx].cap;
+						eenv->cap.delta += eenv->cap.after;
+					}
+				}
+
+				idle_idx = group_idle_state(sg);
+				group_util = group_norm_util(eenv, sg);
+				sg_busy_energy = (group_util * sg->sge->cap_states[cap_idx].power);
+				sg_idle_energy = ((SCHED_LOAD_SCALE-group_util) *
+						  sg->sge->idle_states[idle_idx].power) ;
+
+				total_energy += sg_busy_energy + sg_idle_energy;
+>>>>>>> 6338848... sched: EAS: fix incorrect energy delta calculation due to rounding error
 
 				if (!sd->child)
 					cpumask_xor(&visit_cpus, &visit_cpus, sched_group_cpus(sg));
@@ -5330,6 +5355,7 @@ next_cpu:
 		continue;
 	}
 
+	eenv->energy = total_energy >> SCHED_CAPACITY_SHIFT;
 	return 0;
 }
 
