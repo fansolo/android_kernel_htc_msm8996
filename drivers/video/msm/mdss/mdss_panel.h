@@ -257,7 +257,10 @@ enum mdss_intf_events {
 	MDSS_EVENT_DSI_RECONFIG_CMD,
 	MDSS_EVENT_DSI_RESET_WRITE_PTR,
 	MDSS_EVENT_PANEL_TIMING_SWITCH,
+	MDSS_EVENT_PANEL_VDDIO_SWITCH_ON,
+	MDSS_EVENT_PANEL_VDDIO_SWITCH_OFF,
 	MDSS_EVENT_MAX,
+	MDSS_EVENT_UPDATE_LIVEDISPLAY,
 };
 
 struct lcd_panel_info {
@@ -576,6 +579,8 @@ struct mdss_mdp_pp_tear_check {
 	u32 refx100;
 };
 
+struct mdss_livedisplay_ctx;
+
 struct mdss_panel_roi_alignment {
 	u32 xstart_pix_align;
 	u32 width_pix_align;
@@ -583,6 +588,27 @@ struct mdss_panel_roi_alignment {
 	u32 height_pix_align;
 	u32 min_width;
 	u32 min_height;
+};
+
+/**
+ *  HTC: A Struct for Backlgith 1.0.
+ *  Apply on backlight_transfer function.
+ *  The function will base on brt_data and bl_data to transfer brt and bl value.
+ *  The brt and bl was direct map. For internal value, we will use interpolation method to get transfer value.
+ *
+ *  size: A value to save brt and bl table size.
+ *  brt_data: A point referring to brightness table related data.
+ *  bl_data: A point referring to backlight table related data
+ */
+struct htc_backlight1_table {
+	int size;
+	u16 *brt_data;
+	u16 *bl_data;
+};
+
+enum {
+	PANEL_POWER_CTRL_DEFAULT,
+	PANEL_POWER_CTRL_HX8396C2,
 };
 
 struct mdss_panel_hdr_properties {
@@ -729,8 +755,15 @@ struct mdss_panel_info {
 	 */
 	u32 adjust_timer_delay_ms;
 
+	struct mdss_livedisplay_ctx *livedisplay;
+
 	/* debugfs structure for the panel */
 	struct mdss_panel_debugfs_info *debugfs_info;
+
+	/*HTC add as below*/
+	struct htc_backlight1_table brt_bl_table;
+	int camera_blk;
+	int power_ctrl;
 
 	/* HDR properties of display panel*/
 	struct mdss_panel_hdr_properties hdr_properties;
