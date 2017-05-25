@@ -298,10 +298,11 @@ static void sugov_update_single(struct update_util_data *hook, u64 time,
 	sugov_update_commit(sg_policy, time, next_f);
 }
 
-static unsigned int sugov_next_freq_shared(struct sugov_cpu *sg_cpu, u64 time)
+static unsigned int sugov_next_freq_shared(struct sugov_cpu *sg_cpu)
 {
 	struct sugov_policy *sg_policy = sg_cpu->sg_policy;
 	struct cpufreq_policy *policy = sg_policy->policy;
+	u64 last_freq_update_time = sg_policy->last_freq_update_time;
 	unsigned long util = 0, max = 1;
 	unsigned int j;
 
@@ -361,7 +362,7 @@ static void sugov_update_shared(struct update_util_data *hook, u64 time,
 		if (flags & SCHED_CPUFREQ_DL)
 			next_f = sg_policy->policy->cpuinfo.max_freq;
 		else
-			next_f = sugov_next_freq_shared(sg_cpu, time);
+			next_f = sugov_next_freq_shared(sg_cpu);
 
 		sugov_update_commit(sg_policy, time, next_f);
 	}
